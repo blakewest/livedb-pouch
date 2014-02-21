@@ -38,13 +38,13 @@ exports = module.exports = function(options) {
   return new LiveDbPouch(options);
 };
 
-function LiveDBPouch(options) {
+function LiveDbPouch(options) {
   this.dbs = {};
   this.options = options;
   this.closed = false;
 }
 
-LiveDBPouch.prototype._open = function(dbName) {
+LiveDbPouch.prototype._open = function(dbName) {
   this.dbs[dbName] = this.dbs[dbName] || new PouchDB(dbName, this.options);
   return this.dbs[dbName];
 };
@@ -343,7 +343,7 @@ function castToSnapshot(doc) {
   var docName = doc._id;
   var data = shallowClone(doc);
   var meta = {
-    rev: doc._rev;
+    rev: doc._rev
   };
   delete data.type;
   delete data._rev;
