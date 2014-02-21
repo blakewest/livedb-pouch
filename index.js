@@ -82,6 +82,7 @@ LiveDbPouch.prototype.bulkGetSnapshot = function(requests, callback) {
   var results = {};
 
   var getSnapshots = function(cName, callback) {
+    if (/_ops$/.test(cName)) return callback('Invalid collection name');
     var cResult = results[cName] = {};
 
     var docNames = requests[cName];
@@ -328,10 +329,9 @@ function castToDoc(docName, data) {
     !Array.isArray(data.data)
   ) ?
     shallowClone(data.data) :
-    {_data: (data.data === void 0) ? null : data.data};
+    {data: (data.data === void 0) ? null : data.data};
   doc._type = data.type || null;
-  doc._v = data.v;
-  doc._m = data.m;
+  doc._rev = data.m.rev;
   doc._id = docName;
   return doc;
 }
