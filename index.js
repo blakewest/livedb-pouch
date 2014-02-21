@@ -66,7 +66,7 @@ LiveDbPouch.prototype.getSnapshot = function(dbName, docName, callback) {
 
   var pouch = this.dbs[dbName];
   if (!pouch) {
-    return "No database exists with that name";
+    return callback("No database exists with that name");
   }
 
   pouch.get(docName, function(err, doc) {
