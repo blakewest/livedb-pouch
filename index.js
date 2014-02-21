@@ -339,25 +339,16 @@ function castToDoc(docName, data) {
 
 function castToSnapshot(doc) {
   if (!doc) return;
-  var type = doc._type;
-  var v = doc._v;
+  var type = doc.type;
+  var v = parseInt(doc._rev.split('-')[0]);
   var docName = doc._id;
-  var data = doc._data;
-  var meta = doc._m;
-  if (data === void 0) {
-    doc = shallowClone(doc);
-    delete doc._type;
-    delete doc._v;
-    delete doc._id;
-    delete doc._m;
-    return {
-      data: doc
-    , type: type
-    , v: v
-    , docName: docName
-    , m: meta
-    };
-  }
+  var data = shallowClone(doc);
+  var meta = {
+    rev: doc._rev;
+  };
+  delete data.type;
+  delete data._rev;
+  delete data._id;
   return {
     data: data
   , type: type
