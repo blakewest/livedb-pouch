@@ -82,6 +82,7 @@ LiveDbPouch.prototype.bulkGetSnapshot = function(requests, callback) {
   var results = {};
 
   var getSnapshots = function(cName, callback) {
+    if (/_ops$/.test(cName)) return callback('Invalid collection name');
     var cResult = results[cName] = {};
 
     var docNames = requests[cName];
