@@ -1,7 +1,6 @@
-var _require = require;
-var mongoskin = _require('mongoskin');
 var assert = require('assert');
 var async = require('async');
+var PouchDB = require('pouchdb');
 
 var metaOperators = {
   $comment: true
@@ -35,73 +34,66 @@ var cursorOperators = {
  * var skin = require('mongoskin')('localhost:27017/test?auto_reconnect', {safe:true});
  * var db = require('livedb-mongo')(skin);
  */
-exports = module.exports = function(mongo, options) {
-  if (typeof mongo !== 'object') {
-    mongo = mongoskin.db.apply(mongoskin.db, arguments);
-  }
-  return new LiveDbMongo(mongo, options);
+exports = module.exports = function(options) {
+  return new LiveDbPouch(options);
 };
 
-// Deprecated. Don't use directly.
-exports.LiveDbMongo = LiveDbMongo;
-
-// mongo is a mongoskin client. Create with:
-// mongo.db('localhost:27017/tx?auto_reconnect', safe:true)
-function LiveDbMongo(mongo, options) {
-  this.mongo = mongo;
+function LiveDBPouch(options) {
+  this.dbs = {};
+  this.options = options;
   this.closed = false;
-
-  if (options && options.mongoPoll) {
-    this.mongoPoll = options.mongoPoll;
-  }
-
-  // The getVersion() and getOps() methods depend on a collectionname_ops
-  // collection, and that collection should have an index on the operations
-  // stored there. I could ask people to make these indexes themselves, but
-  // even I forgot on some of my collections, so the mongo driver will just do
-  // it manually. This approach will leak memory relative to the number of
-  // collections you have, but if you've got thousands of mongo collections
-  // you're probably doing something wrong.
-
-  // map from collection name -> true for op collections we've ensureIndex'ed
-  this.opIndexes = {};
 }
 
-LiveDbMongo.prototype.close = function(callback) {
+LiveDBPouch.prototype._open = function(dbName) {
+  this.dbs[dbName] = this.dbs[dbName] || new PouchDB(dbName, this.options);
+  return this.dbs[dbName];
+};
+
+LiveDbPouch.prototype.close = function(callback) {
   if (this.closed) return callback('db already closed');
-  this.mongo.close(callback);
+  if (typeof callback === 'function') {
+    callback();
+  }
   this.closed = true;
 };
 
 
 // **** Snapshot methods
 
-LiveDbMongo.prototype.getSnapshot = function(cName, docName, callback) {
+LiveDbPouch.prototype.getSnapshot = function(dbName, docName, callback) {
   if (this.closed) return callback('db already closed');
-  if (/_ops$/.test(cName)) return callback('Invalid collection name');
-  this.mongo.collection(cName).findOne({_id: docName}, function(err, doc) {
+  if (/_ops$/.test(dbName)) return callback('Invalid collection name');
+
+  var pouch = this.dbs[dbName];
+  if (!pouch) {
+    return "No database exists with that name";
+  }
+
+  pouch.get(docName, function(err, doc) {
     callback(err, castToSnapshot(doc));
   });
 };
 
-LiveDbMongo.prototype.bulkGetSnapshot = function(requests, callback) {
+
+LiveDbPouch.prototype.bulkGetSnapshot = function(requests, callback) {
   if (this.closed) return callback('db already closed');
 
-  var mongo = this.mongo;
+  var dbs = this.dbs;
   var results = {};
 
   var getSnapshots = function(cName, callback) {
-    if (/_ops$/.test(cName)) return callback('Invalid collection name');
-
     var cResult = results[cName] = {};
 
     var docNames = requests[cName];
-    mongo.collection(cName).find({_id:{$in:docNames}}).toArray(function(err, data) {
-      if (err) return callback(err);
-      data = data && data.map(castToSnapshot);
 
-      for (var i = 0; i < data.length; i++) {
-        cResult[data[i].docName] = data[i];
+    dbs[cName].allDocs({keys: docNames, include_docs: true}, function(err, response) {
+      if (err) return callback(err);
+
+      var rows = response.rows;
+
+      for (var i = 0; i < rows.length; i++) {
+        var snapshot = castToSnapshot(rows[i].doc);
+        cResult[snapshot.id] = snapshot;
       }
       callback();
     });
@@ -112,7 +104,7 @@ LiveDbMongo.prototype.bulkGetSnapshot = function(requests, callback) {
   });
 };
 
-LiveDbMongo.prototype.writeSnapshot = function(cName, docName, data, callback) {
+LiveDbPouch.prototype.writeSnapshot = function(cName, docName, data, callback) {
   if (this.closed) return callback('db already closed');
   if (/_ops$/.test(cName)) return callback('Invalid collection name');
   var doc = castToDoc(docName, data);
@@ -123,13 +115,13 @@ LiveDbMongo.prototype.writeSnapshot = function(cName, docName, data, callback) {
 // ******* Oplog methods
 
 // Overwrite me if you want to change this behaviour.
-LiveDbMongo.prototype.getOplogCollectionName = function(cName) {
+LiveDbPouch.prototype.getOplogCollectionName = function(cName) {
   // Using an underscore to make it easier to see whats going in on the shell
   return cName + '_ops';
 };
 
 // Get and return the op collection from mongo, ensuring it has the op index.
-LiveDbMongo.prototype._opCollection = function(cName) {
+LiveDbPouch.prototype._opCollection = function(cName) {
   var collection = this.mongo.collection(this.getOplogCollectionName(cName));
 
   if (!this.opIndexes[cName]) {
@@ -143,7 +135,7 @@ LiveDbMongo.prototype._opCollection = function(cName) {
   return collection;
 };
 
-LiveDbMongo.prototype.writeOp = function(cName, docName, opData, callback) {
+LiveDbPouch.prototype.writeOp = function(cName, docName, opData, callback) {
   assert(opData.v != null);
 
   if (this.closed) return callback('db already closed');
@@ -157,7 +149,7 @@ LiveDbMongo.prototype.writeOp = function(cName, docName, opData, callback) {
   this._opCollection(cName).save(data, callback);
 };
 
-LiveDbMongo.prototype.getVersion = function(cName, docName, callback) {
+LiveDbPouch.prototype.getVersion = function(cName, docName, callback) {
   if (this.closed) return callback('db already closed');
   if (/_ops$/.test(cName)) return callback('Invalid collection name');
 
@@ -172,7 +164,7 @@ LiveDbMongo.prototype.getVersion = function(cName, docName, callback) {
   });
 };
 
-LiveDbMongo.prototype.getOps = function(cName, docName, start, end, callback) {
+LiveDbPouch.prototype.getOps = function(cName, docName, start, end, callback) {
   if (this.closed) return callback('db already closed');
   if (/_ops$/.test(cName)) return callback('Invalid collection name');
 
@@ -194,7 +186,7 @@ LiveDbMongo.prototype.getOps = function(cName, docName, start, end, callback) {
 // ***** Query methods
 
 // Internal method to actually run the query.
-LiveDbMongo.prototype._query = function(mongo, cName, query, callback) {
+LiveDbPouch.prototype._query = function(mongo, cName, query, callback) {
   // For count queries, don't run the find() at all.
   if (query.$count) {
     delete query.$count;
@@ -226,7 +218,7 @@ LiveDbMongo.prototype._query = function(mongo, cName, query, callback) {
 
 };
 
-LiveDbMongo.prototype.query = function(livedb, cName, inputQuery, opts, callback) {
+LiveDbPouch.prototype.query = function(livedb, cName, inputQuery, opts, callback) {
   if (this.closed) return callback('db already closed');
   if (/_ops$/.test(cName)) return callback('Invalid collection name');
 
@@ -251,7 +243,7 @@ LiveDbMongo.prototype.query = function(livedb, cName, inputQuery, opts, callback
   }
 };
 
-LiveDbMongo.prototype.queryDoc = function(livedb, index, cName, docName, inputQuery, callback) {
+LiveDbPouch.prototype.queryDoc = function(livedb, index, cName, docName, inputQuery, callback) {
   if (this.closed) return callback('db already closed');
   if (/_ops$/.test(cName)) return callback('Invalid collection name');
   var query = normalizeQuery(inputQuery);
@@ -278,12 +270,12 @@ LiveDbMongo.prototype.queryDoc = function(livedb, index, cName, docName, inputQu
 // currentStatus is true or false depending on whether the query currently
 // matches. return true or false if it knows, or null if the function doesn't
 // have enough information to tell.
-LiveDbMongo.prototype.willOpMakeDocMatchQuery = function(currentStatus, query, op) {
+LiveDbPouch.prototype.willOpMakeDocMatchQuery = function(currentStatus, query, op) {
   return null;
 };
 
 // Does the query need to be rerun against the database with every edit?
-LiveDbMongo.prototype.queryNeedsPollMode = function(index, query) {
+LiveDbPouch.prototype.queryNeedsPollMode = function(index, query) {
   return query.hasOwnProperty('$orderby') ||
     query.hasOwnProperty('$limit') ||
     query.hasOwnProperty('$skip') ||
