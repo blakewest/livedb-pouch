@@ -19,5 +19,8 @@
   "license": "MIT License",
   "bugs": {
     "url": "https://github.com/bwest87/livedb-pouch/issues"
+  },
+  "dependencies": {
+    "pouchdb": "~1.1.0"
   }
 }
