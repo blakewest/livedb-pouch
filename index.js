@@ -126,17 +126,17 @@ LiveDbPouch.prototype._opCollection = function(cName) {
 };
 
 LiveDbPouch.prototype.writeOp = function(cName, docName, opData, callback) {
-  assert(opData.v != null);
+  assert(opData.v !== null);
 
   if (this.closed) return callback('db already closed');
   if (/_ops$/.test(cName)) return callback('Invalid collection name');
   var self = this;
 
   var data = shallowClone(opData);
-  data._id = docName + ' v' + opData.v,
+  data._id = docName + ' v' + opData.v;
   data.name = docName;
 
-  this._opCollection(cName).save(data, callback);
+  this._opCollection(cName).put(data, callback);
 };
 
 LiveDbPouch.prototype.getVersion = function(cName, docName, callback) {
