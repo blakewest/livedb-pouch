@@ -1,0 +1,23 @@
+{
+  "name": "livedb-pouch",
+  "version": "0.0.0",
+  "description": "PouchDB powered backend for livedb",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bwest87/livedb-pouch.git"
+  },
+  "keywords": [
+    "pouchdb",
+    "livedb",
+    "sharejs"
+  ],
+  "author": "Blake West <bwest87@gmail.com> (http://www.sympatheticvibration.com/)",
+  "license": "MIT License",
+  "bugs": {
+    "url": "https://github.com/bwest87/livedb-pouch/issues"
+  }
+}
