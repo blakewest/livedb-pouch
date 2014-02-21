@@ -120,19 +120,9 @@ LiveDbPouch.prototype.getOplogCollectionName = function(cName) {
   return cName + '_ops';
 };
 
-// Get and return the op collection from mongo, ensuring it has the op index.
+// Get and return the op collection.
 LiveDbPouch.prototype._opCollection = function(cName) {
-  var collection = this.mongo.collection(this.getOplogCollectionName(cName));
-
-  if (!this.opIndexes[cName]) {
-    collection.ensureIndex({name: 1, v: 1}, true, function(error, name) {
-      if (error) console.warn('Warning: Could not create index for op collection:', error.stack || error);
-    });
-
-    this.opIndexes[cName] = true;
-  }
-
-  return collection;
+  var collection = this._open(this.getOplogCollectionName(cName));
 };
 
 LiveDbPouch.prototype.writeOp = function(cName, docName, opData, callback) {
