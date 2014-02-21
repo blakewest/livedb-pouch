@@ -3,9 +3,6 @@
   "version": "0.0.0",
   "description": "PouchDB powered backend for livedb",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/bwest87/livedb-pouch.git"
@@ -21,6 +18,15 @@
     "url": "https://github.com/bwest87/livedb-pouch/issues"
   },
   "dependencies": {
-    "pouchdb": "~1.1.0"
+    "pouchdb": "~1.1.0",
+    "async": "~0.2.10"
+  },
+  "devDependencies": {
+    "livedb": "~0.3.0",
+    "mocha": "~1.17.1",
+    "coffee-script": "~1.7.1"
+  },
+  "scripts": {
+    "test": "mocha --compilers coffee:coffee-script/register --reporter spec --check-leaks test.coffee"
   }
 }
