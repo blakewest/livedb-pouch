@@ -142,14 +142,18 @@ LiveDbPouch.prototype.writeOp = function(cName, docName, opData, callback) {
 LiveDbPouch.prototype.getVersion = function(cName, docName, callback) {
   if (this.closed) return callback('db already closed');
   if (/_ops$/.test(cName)) return callback('Invalid collection name');
+  var docVprefix = docName + ' v';
+  var startKey = docVprefix + '\ufff0';
+  var endKey = docVprefix;
 
-  this._opCollection(cName).findOne({name:docName}, {sort:{v:-1}}, function(err, data) {
+  this._opCollection(cName).allDocs({startKey: startKey, endKey: endKey, limit: 1, descending: true, include_docs: true}, function(err, data) {
     if (err) return callback(err);
 
-    if (data == null) {
+    if (data === null) {
       callback(null, 0);
     } else {
-      callback(err, data.v + 1);
+      var version = parseInt(data[0]._rev.split('-')[0], 10);
+      callback(err, version + 1);
     }
   });
 };
@@ -329,7 +333,7 @@ function castToDoc(docName, data) {
 function castToSnapshot(doc) {
   if (!doc) return;
   var type = doc.type;
-  var v = parseInt(doc._rev.split('-')[0]);
+  var v = parseInt(doc._rev.split('-')[0], 10);
   var docName = doc._id;
   var data = shallowClone(doc);
   var meta = {
