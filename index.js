@@ -122,7 +122,7 @@ LiveDbPouch.prototype.getOplogCollectionName = function(cName) {
 
 // Get and return the op collection.
 LiveDbPouch.prototype._opCollection = function(cName) {
-  var collection = this._open(this.getOplogCollectionName(cName));
+  return this._open(this.getOplogCollectionName(cName));
 };
 
 LiveDbPouch.prototype.writeOp = function(cName, docName, opData, callback) {
