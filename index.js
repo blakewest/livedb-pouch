@@ -63,14 +63,14 @@ LiveDbPouch.prototype.close = function(callback) {
 LiveDbPouch.prototype.getSnapshot = function(dbName, docName, callback) {
   if (this.closed) return callback('db already closed');
   if (/_ops$/.test(dbName)) return callback('Invalid collection name');
-
-  var pouch = this.dbs[dbName];
-  if (!pouch) {
-    return "No database exists with that name";
-  }
-
-  pouch.get(docName, function(err, doc) {
-    callback(err, castToSnapshot(doc));
+  this._open(dbName).get(docName, function(err, doc) {
+    if (err) {
+      if (err.name == 'not_found') {
+        return callback(null, null);
+      }
+      return callback(err);
+    }
+    callback(null, castToSnapshot(doc));
   });
 };
 
