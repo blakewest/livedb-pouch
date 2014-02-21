@@ -106,9 +106,8 @@ LiveDbPouch.prototype.bulkGetSnapshot = function(requests, callback) {
 
 LiveDbPouch.prototype.writeSnapshot = function(cName, docName, data, callback) {
   if (this.closed) return callback('db already closed');
-  if (/_ops$/.test(cName)) return callback('Invalid collection name');
   var doc = castToDoc(docName, data);
-  this.mongo.collection(cName).update({_id: docName}, doc, {upsert: true}, callback);
+  this.dbs[cName].put(doc, callback);
 };
 
 
