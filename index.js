@@ -186,141 +186,141 @@ LiveDbPouch.prototype.getOps = function(cName, docName, start, end, callback) {
 // ***** Query methods
 
 // Internal method to actually run the query.
-LiveDbPouch.prototype._query = function(mongo, cName, query, callback) {
-  // For count queries, don't run the find() at all.
-  if (query.$count) {
-    delete query.$count;
-    mongo.collection(cName).count(query.$query || {}, function(err, count) {
-      if (err) return callback(err);
+// LiveDbPouch.prototype._query = function(mongo, cName, query, callback) {
+//   // For count queries, don't run the find() at all.
+//   if (query.$count) {
+//     delete query.$count;
+//     mongo.collection(cName).count(query.$query || {}, function(err, count) {
+//       if (err) return callback(err);
 
-      // This API is kind of awful. FIXME in livedb.
-      callback(err, {results:[], extra:count});
-    });
-  } else {
-    var cursorMethods = extractCursorMethods(query);
+//       // This API is kind of awful. FIXME in livedb.
+//       callback(err, {results:[], extra:count});
+//     });
+//   } else {
+//     var cursorMethods = extractCursorMethods(query);
 
-    mongo.collection(cName).find(query, function(err, cursor) {
-      if (err) return callback(err);
+//     mongo.collection(cName).find(query, function(err, cursor) {
+//       if (err) return callback(err);
 
-      for (var i = 0; i < cursorMethods.length; i++) {
-        var item = cursorMethods[i];
-        var method = item[0];
-        var arg = item[1];
-        cursor[method](arg);
-      }
+//       for (var i = 0; i < cursorMethods.length; i++) {
+//         var item = cursorMethods[i];
+//         var method = item[0];
+//         var arg = item[1];
+//         cursor[method](arg);
+//       }
 
-      cursor.toArray(function(err, results) {
-        results = results && results.map(castToSnapshot);
-        callback(err, results);
-      });
-    });
-  }
+//       cursor.toArray(function(err, results) {
+//         results = results && results.map(castToSnapshot);
+//         callback(err, results);
+//       });
+//     });
+//   }
 
-};
+// };
 
-LiveDbPouch.prototype.query = function(livedb, cName, inputQuery, opts, callback) {
-  if (this.closed) return callback('db already closed');
-  if (/_ops$/.test(cName)) return callback('Invalid collection name');
+// LiveDbPouch.prototype.query = function(livedb, cName, inputQuery, opts, callback) {
+//   if (this.closed) return callback('db already closed');
+//   if (/_ops$/.test(cName)) return callback('Invalid collection name');
 
-  // To support livedb <=0.2.8
-  if (typeof opts === 'function') {
-    callback = opts;
-    opts = {};
-  }
+//   // To support livedb <=0.2.8
+//   if (typeof opts === 'function') {
+//     callback = opts;
+//     opts = {};
+//   }
 
-  var query = normalizeQuery(inputQuery);
+//   var query = normalizeQuery(inputQuery);
 
-  // Use this.mongoPoll if its a polling query.
-  if (opts.mode === 'poll' && this.mongoPoll) {
-    var self = this;
-    // This timeout is a dodgy hack to work around race conditions replicating the
-    // data out to the polling target replica.
-    setTimeout(function() {
-      self._query(self.mongoPoll, cName, query, callback);
-    }, 300);
-  } else {
-    this._query(this.mongo, cName, query, callback);
-  }
-};
+//   // Use this.mongoPoll if its a polling query.
+//   if (opts.mode === 'poll' && this.mongoPoll) {
+//     var self = this;
+//     // This timeout is a dodgy hack to work around race conditions replicating the
+//     // data out to the polling target replica.
+//     setTimeout(function() {
+//       self._query(self.mongoPoll, cName, query, callback);
+//     }, 300);
+//   } else {
+//     this._query(this.mongo, cName, query, callback);
+//   }
+// };
 
-LiveDbPouch.prototype.queryDoc = function(livedb, index, cName, docName, inputQuery, callback) {
-  if (this.closed) return callback('db already closed');
-  if (/_ops$/.test(cName)) return callback('Invalid collection name');
-  var query = normalizeQuery(inputQuery);
+// LiveDbPouch.prototype.queryDoc = function(livedb, index, cName, docName, inputQuery, callback) {
+//   if (this.closed) return callback('db already closed');
+//   if (/_ops$/.test(cName)) return callback('Invalid collection name');
+//   var query = normalizeQuery(inputQuery);
 
-  // Run the query against a particular mongo document by adding an _id filter
-  var queryId = query.$query._id;
-  if (queryId) {
-    delete query.$query._id;
-    query.$query.$and = [{_id: docName}, {_id: queryId}];
-  } else {
-    query.$query._id = docName;
-  }
+//   // Run the query against a particular mongo document by adding an _id filter
+//   var queryId = query.$query._id;
+//   if (queryId) {
+//     delete query.$query._id;
+//     query.$query.$and = [{_id: docName}, {_id: queryId}];
+//   } else {
+//     query.$query._id = docName;
+//   }
 
-  this.mongo.collection(cName).findOne(query, function(err, doc) {
-    callback(err, castToSnapshot(doc));
-  });
-};
+//   this.mongo.collection(cName).findOne(query, function(err, doc) {
+//     callback(err, castToSnapshot(doc));
+//   });
+// };
 
-// Test whether an operation will make the document its applied to match the
-// specified query. This function doesn't really have enough information to know
-// in all cases, but if we can determine whether a query matches based on just
-// the operation, it saves doing extra DB calls.
-//
-// currentStatus is true or false depending on whether the query currently
-// matches. return true or false if it knows, or null if the function doesn't
-// have enough information to tell.
-LiveDbPouch.prototype.willOpMakeDocMatchQuery = function(currentStatus, query, op) {
-  return null;
-};
+// // Test whether an operation will make the document its applied to match the
+// // specified query. This function doesn't really have enough information to know
+// // in all cases, but if we can determine whether a query matches based on just
+// // the operation, it saves doing extra DB calls.
+// //
+// // currentStatus is true or false depending on whether the query currently
+// // matches. return true or false if it knows, or null if the function doesn't
+// // have enough information to tell.
+// LiveDbPouch.prototype.willOpMakeDocMatchQuery = function(currentStatus, query, op) {
+//   return null;
+// };
 
-// Does the query need to be rerun against the database with every edit?
-LiveDbPouch.prototype.queryNeedsPollMode = function(index, query) {
-  return query.hasOwnProperty('$orderby') ||
-    query.hasOwnProperty('$limit') ||
-    query.hasOwnProperty('$skip') ||
-    query.hasOwnProperty('$count');
-};
+// // Does the query need to be rerun against the database with every edit?
+// LiveDbPouch.prototype.queryNeedsPollMode = function(index, query) {
+//   return query.hasOwnProperty('$orderby') ||
+//     query.hasOwnProperty('$limit') ||
+//     query.hasOwnProperty('$skip') ||
+//     query.hasOwnProperty('$count');
+// };
 
 
-// Utility methods
+// // Utility methods
 
-function extractCursorMethods(query) {
-  var out = [];
-  for (var key in query) {
-    if (cursorOperators[key]) {
-      out.push([cursorOperators[key], query[key]]);
-      delete query[key];
-    }
-  }
-  return out;
-}
+// function extractCursorMethods(query) {
+//   var out = [];
+//   for (var key in query) {
+//     if (cursorOperators[key]) {
+//       out.push([cursorOperators[key], query[key]]);
+//       delete query[key];
+//     }
+//   }
+//   return out;
+// }
 
-function normalizeQuery(inputQuery) {
-  // Box queries inside of a $query and clone so that we know where to look
-  // for selctors and can modify them without affecting the original object
-  var query;
-  if (inputQuery.$query) {
-    query = shallowClone(inputQuery);
-    query.$query = shallowClone(query.$query);
-  } else {
-    query = {$query: {}};
-    for (var key in inputQuery) {
-      if (metaOperators[key] || cursorOperators[key]) {
-        query[key] = inputQuery[key];
-      } else {
-        query.$query[key] = inputQuery[key];
-      }
-    }
-  }
+// function normalizeQuery(inputQuery) {
+//   // Box queries inside of a $query and clone so that we know where to look
+//   // for selctors and can modify them without affecting the original object
+//   var query;
+//   if (inputQuery.$query) {
+//     query = shallowClone(inputQuery);
+//     query.$query = shallowClone(query.$query);
+//   } else {
+//     query = {$query: {}};
+//     for (var key in inputQuery) {
+//       if (metaOperators[key] || cursorOperators[key]) {
+//         query[key] = inputQuery[key];
+//       } else {
+//         query.$query[key] = inputQuery[key];
+//       }
+//     }
+//   }
 
-  // Deleted documents are kept around so that we can start their version from
-  // the last version if they get recreated. When they are deleted, their type
-  // is set to null, so don't return any documents with a null type.
-  if (!query.$query._type) query.$query._type = {$ne: null};
+//   // Deleted documents are kept around so that we can start their version from
+//   // the last version if they get recreated. When they are deleted, their type
+//   // is set to null, so don't return any documents with a null type.
+//   if (!query.$query._type) query.$query._type = {$ne: null};
 
-  return query;
-}
+//   return query;
+// }
 
 function castToDoc(docName, data) {
   var doc = (
