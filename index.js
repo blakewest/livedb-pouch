@@ -109,7 +109,12 @@ LiveDbPouch.prototype.bulkGetSnapshot = function(requests, callback) {
 LiveDbPouch.prototype.writeSnapshot = function(cName, docName, data, callback) {
   if (this.closed) return callback('db already closed');
   var doc = castToDoc(docName, data);
-  this.dbs[cName].put(doc, callback);
+  this._open(cName).put(doc, function(err, data) {
+    if (err) {
+      console.log(err);
+    }
+    callback(err, data);
+  });
 };
 
 
@@ -331,7 +336,7 @@ function castToDoc(docName, data) {
   ) ?
     shallowClone(data.data) :
     {data: (data.data === void 0) ? null : data.data};
-  doc._type = data.type || null;
+  doc.type = data.type || null;
   doc._rev = data.m.rev;
   doc._id = docName;
   return doc;
