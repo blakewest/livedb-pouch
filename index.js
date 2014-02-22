@@ -156,24 +156,31 @@ LiveDbPouch.prototype.writeOp = function(cName, docName, opData, callback) {
   data._id = docName + ' v' + opData.v;
   data.name = docName;
 
-  this._opCollection(cName).put(data, callback);
+  this._opCollection(cName).put(data, function (err) {
+    if (err && err.status != 409) return callback(err);
+    callback();
+  });
 };
 
 LiveDbPouch.prototype.getVersion = function(cName, docName, callback) {
   if (this.closed) return callback('db already closed');
   if (/_ops$/.test(cName)) return callback('Invalid collection name');
-  var docVprefix = docName + ' v';
-  var startKey = docVprefix + '\ufff0';
-  var endKey = docVprefix;
 
-  this._opCollection(cName).allDocs({startKey: startKey, endKey: endKey, limit: 1, descending: true, include_docs: true}, function(err, data) {
+  var query = {
+    startkey: docName + ' v\ufff0'
+  , endkey: docName + ' v'
+  , limit: 1
+  , descending: true
+  , include_docs: true
+  };
+  this._opCollection(cName).allDocs(query, function(err, data) {
     if (err) return callback(err);
+    var op = data.rows[0];
 
-    if (data === null) {
+    if (op === void 0) {
       callback(null, 0);
     } else {
-      var version = parseInt(data[0]._rev.split('-')[0], 10);
-      callback(err, version + 1);
+      callback(null, op.doc.v + 1);
     }
   });
 };
@@ -193,9 +200,9 @@ LiveDbPouch.prototype.getOps = function(cName, docName, start, end, callback) {
     if (err) return callback(err);
 
     data = data.rows.map(function (row) {
-      delete row.data._id;
-      delete row.data.name;
-      return row.data;
+      delete row.doc._id;
+      delete row.doc.name;
+      return row.doc;
     });
 
     callback(null, data);
