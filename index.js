@@ -51,6 +51,7 @@ LiveDbPouch.prototype._open = function(dbName) {
 
 LiveDbPouch.prototype.close = function(callback) {
   if (this.closed) return callback('db already closed');
+  this.dbs = {}
   if (typeof callback === 'function') {
     callback();
   }
