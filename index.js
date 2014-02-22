@@ -110,11 +110,18 @@ LiveDbPouch.prototype.bulkGetSnapshot = function(requests, callback) {
 LiveDbPouch.prototype.writeSnapshot = function(cName, docName, data, callback) {
   if (this.closed) return callback('db already closed');
   var doc = castToDoc(docName, data);
-  this._open(cName).put(doc, function(err, data) {
-    if (err) {
-      console.log(err);
-    }
-    callback(err, data);
+  /* XXX
+     This is nasty. We should be able to round trip _rev through livedb somehow
+     but the test suite does a bunch of deepEquals and tries to delete a doc
+     by specifying an object with only a version number.
+
+     If livedb allowed for non-integer versions we could map it directly to
+     revs but it doesn't. So we deal. It's not ideal.
+  */
+  var db = this._open(cName);
+  db.get(doc._id, function (err, existing) {
+    if (existing) doc._rev = existing._rev;
+    db.put(doc, callback);
   });
 };
 
@@ -338,7 +345,8 @@ function castToDoc(docName, data) {
     shallowClone(data.data) :
     {data: (data.data === void 0) ? null : data.data};
   doc.type = data.type || null;
-  doc._rev = data.m.rev;
+  doc.m = data.m;
+  doc.v = data.v;
   doc._id = docName;
   return doc;
 }
@@ -346,15 +354,24 @@ function castToDoc(docName, data) {
 function castToSnapshot(doc) {
   if (!doc) return;
   var type = doc.type;
-  var v = parseInt(doc._rev.split('-')[0], 10);
+  var v = doc.v;
   var docName = doc._id;
-  var data = shallowClone(doc);
-  var meta = {
-    rev: doc._rev
-  };
-  delete data.type;
-  delete data._rev;
-  delete data._id;
+  var data = doc.data;
+  var meta = doc.m;
+  if (data === void 0) {
+    doc = shallowClone(doc);
+    delete data.type;
+    delete data.v;
+    delete data._rev;
+    delete data._id;
+    return {
+      data: doc
+    , type: type
+    , v: v
+    , docName: docName
+    , m: meta
+    };
+  }
   return {
     data: data
   , type: type
