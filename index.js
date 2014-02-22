@@ -188,6 +188,7 @@ LiveDbPouch.prototype.getVersion = function(cName, docName, callback) {
 LiveDbPouch.prototype.getOps = function(cName, docName, start, end, callback) {
   if (this.closed) return callback('db already closed');
   if (/_ops$/.test(cName)) return callback('Invalid collection name');
+  if (start == end) return callback(null, []);
   if (end == null) end = '\ufff0';
 
   var query = {
@@ -199,13 +200,14 @@ LiveDbPouch.prototype.getOps = function(cName, docName, start, end, callback) {
   this._opCollection(cName).allDocs(query, function (err, data) {
     if (err) return callback(err);
 
-    data = data.rows.map(function (row) {
+    var ops = data.rows.map(function (row) {
       delete row.doc._id;
+      delete row.doc._rev;
       delete row.doc.name;
       return row.doc;
     });
 
-    callback(null, data);
+    callback(null, ops);
   });
 };
 
