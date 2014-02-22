@@ -80,7 +80,7 @@ LiveDbPouch.prototype.getSnapshot = function(dbName, docName, callback) {
 LiveDbPouch.prototype.bulkGetSnapshot = function(requests, callback) {
   if (this.closed) return callback('db already closed');
 
-  var dbs = this.dbs;
+  var db = this._open.bind(this);
   var results = {};
 
   var getSnapshots = function(cName, callback) {
@@ -88,15 +88,21 @@ LiveDbPouch.prototype.bulkGetSnapshot = function(requests, callback) {
     var cResult = results[cName] = {};
 
     var docNames = requests[cName];
+    var query = {
+      keys: docNames
+    , include_docs: true
+    };
 
-    dbs[cName].allDocs({keys: docNames, include_docs: true}, function(err, response) {
+    db(cName).allDocs(query, function(err, response) {
       if (err) return callback(err);
 
       var rows = response.rows;
 
       for (var i = 0; i < rows.length; i++) {
-        var snapshot = castToSnapshot(rows[i].doc);
-        cResult[snapshot.id] = snapshot;
+        if (rows[i].doc != void 0) {
+          var snapshot = castToSnapshot(rows[i].doc);
+          cResult[snapshot.docName] = snapshot;
+        }
       }
       callback();
     });
